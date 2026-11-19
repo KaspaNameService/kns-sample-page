@@ -14,11 +14,23 @@ import { sendToName } from './examples/01-send-to-name'
 import { namesOfAddress } from './examples/02-user-names'
 import { checkName } from './examples/03-check-name'
 import { browseListings } from './examples/04-marketplace'
+import { connectWallet, detectWallets } from './examples/05-connect-wallet'
+import { registerName } from './examples/06-register'
+import { transferName } from './examples/07-transfer'
+import { changePrimaryName } from './examples/08-primary-name'
+import { cancelListing, listForSale } from './examples/09-list-for-sale'
+import { buyName } from './examples/10-buy'
 
 import sendToNameCode from './examples/01-send-to-name.ts?raw'
 import userNamesCode from './examples/02-user-names.ts?raw'
 import checkNameCode from './examples/03-check-name.ts?raw'
 import marketplaceCode from './examples/04-marketplace.ts?raw'
+import connectCode from './examples/05-connect-wallet.ts?raw'
+import registerCode from './examples/06-register.ts?raw'
+import transferCode from './examples/07-transfer.ts?raw'
+import primaryCode from './examples/08-primary-name.ts?raw'
+import listCode from './examples/09-list-for-sale.ts?raw'
+import buyCode from './examples/10-buy.ts?raw'
 import errorsCode from './examples/errors.ts?raw'
 import knsCode from './kns.ts?raw'
 
@@ -52,6 +64,7 @@ interface Section {
 }
 
 const SAMPLE_ADDRESS = 'kaspatest:qq5d6rgy3tvzl3v7x5uzkvf9ty70zf7eqva967dakm7eg3jgpx7gc78tq4xp2'
+const DOCS = 'https://github.com/KaspaNameService/kns-sdk-docs/blob/main'
 
 const SECTIONS: Section[] = [
   {
@@ -118,6 +131,89 @@ const SECTIONS: Section[] = [
         },
       },
     ],
+  },
+  {
+    id: 'connect',
+    title: '5. Connect a wallet',
+    intro:
+      `Connect KasWare or Kastle on testnet-10. Managing a name needs a wallet that also signs the name's ` +
+      `covenant input; the <a href="${DOCS}/wallet-signing.md" target="_blank" rel="noopener">signing spec</a> says what that means.`,
+    file: 'src/examples/05-connect-wallet.ts',
+    code: connectCode,
+    fields: [],
+    actions: [
+      { label: 'Connect KasWare', run: () => connectWallet('kasware').then(onConnected) },
+      { label: 'Connect Kastle', run: () => connectWallet('kastle').then(onConnected) },
+    ],
+  },
+  {
+    id: 'register',
+    title: '6. Register a name',
+    intro: 'Quote the name, confirm the cost, then register it in one transaction.',
+    file: 'src/examples/06-register.ts',
+    code: registerCode,
+    wallet: true,
+    fields: [{ key: 'name', label: 'Name', placeholder: 'my-new-name.kas' }],
+    actions: [{ label: 'Run', run: (v, ui) => registerName(v.name ?? '', ui) }],
+  },
+  {
+    id: 'transfer',
+    title: '7. Transfer a name',
+    intro: 'Send a name you hold to another address: plan, confirm, submit.',
+    file: 'src/examples/07-transfer.ts',
+    code: transferCode,
+    wallet: true,
+    fields: [
+      { key: 'name', label: 'Your name', placeholder: 'alice.kas' },
+      { key: 'to', label: 'Recipient address', placeholder: 'kaspatest:…', wide: true },
+    ],
+    actions: [{ label: 'Run', run: (v, ui) => transferName(v.name ?? '', v.to ?? '', ui) }],
+  },
+  {
+    id: 'primary',
+    title: '8. Set or clear the primary name',
+    intro: 'Choose the one name your address shows (what section 2 reads), or stop showing it.',
+    file: 'src/examples/08-primary-name.ts',
+    code: primaryCode,
+    wallet: true,
+    fields: [
+      { key: 'name', label: 'Your name', placeholder: 'alice.kas' },
+      { key: 'action', label: 'Action', options: [['set', 'Set as primary'], ['clear', 'Clear primary']] },
+    ],
+    actions: [
+      { label: 'Run', run: (v, ui) => changePrimaryName(v.name ?? '', v.action === 'clear' ? 'clear' : 'set', ui) },
+    ],
+  },
+  {
+    id: 'list',
+    title: '9. List for sale, and cancel',
+    intro: 'List a name, optionally with a partner fee for your marketplace, see the split before signing, or cancel.',
+    file: 'src/examples/09-list-for-sale.ts',
+    code: listCode,
+    wallet: true,
+    fields: [
+      { key: 'name', label: 'Your name', placeholder: 'alice.kas' },
+      { key: 'price', label: 'Price (KAS)', value: '25' },
+      { key: 'partner', label: 'Partner fee address (optional)', placeholder: 'kaspatest:…', wide: true },
+      { key: 'bps', label: 'Partner fee (basis points)', value: '250' },
+    ],
+    actions: [
+      { label: 'List', run: (v, ui) => listForSale(v.name ?? '', v.price ?? '', v.partner ?? '', v.bps ?? '', ui) },
+      { label: 'Cancel listing', run: (v, ui) => cancelListing(v.name ?? '', ui) },
+    ],
+  },
+  {
+    id: 'buy',
+    title: '10. Buy a listed name',
+    intro: 'Buy a name at the price you saw; the plan refuses if the listing changed.',
+    file: 'src/examples/10-buy.ts',
+    code: buyCode,
+    wallet: true,
+    fields: [
+      { key: 'name', label: 'Listed name', placeholder: 'see section 4' },
+      { key: 'saw', label: 'Price you saw (KAS, optional)', placeholder: 'the current price' },
+    ],
+    actions: [{ label: 'Run', run: (v, ui) => buyName(v.name ?? '', v.saw ?? '', ui) }],
   },
 ]
 
@@ -249,6 +345,26 @@ function renderSection(s: Section): HTMLElement {
   )
 }
 
+// ---------------------------------------------------------------------------------------------- wallet chip
+
+const walletChip = document.querySelector<HTMLElement>('#wallet-status')!
+
+/** After section 5 connects: show the account in the header. */
+function onConnected<T extends { address: string; wallet: string }>(r: T): T {
+  walletChip.textContent = `${r.wallet}: ${r.address.slice(0, 18)}…${r.address.slice(-6)}`
+  walletChip.className = 'chip ok'
+  return r
+}
+
+/** Which wallets are installed. Asked twice: an extension can inject after the page has loaded. */
+function showDetectedWallets() {
+  const found = detectWallets()
+  const note = document.querySelector<HTMLElement>('#connect .status')
+  if (note && (!note.textContent || note.textContent.startsWith('Detected:'))) {
+    note.textContent = `Detected: KasWare ${found.kasware ? 'yes' : 'no'}, Kastle ${found.kastle ? 'yes' : 'no'}.`
+  }
+}
+
 // ---------------------------------------------------------------------------------------------- start
 
 const app = document.querySelector<HTMLElement>('#app')!
@@ -276,6 +392,9 @@ app.append(
   ),
 )
 nav.append(h('li', {}, h('a', { href: '#clients' }, 'The clients')), h('li', {}, h('a', { href: '#errors' }, 'Errors')))
+
+showDetectedWallets()
+setTimeout(showDetectedWallets, 1000)
 
 // The tracker's health, in the header: the reader's first call also checks the tracker serves this registry.
 const trackerChip = document.querySelector<HTMLElement>('#tracker-status')!
