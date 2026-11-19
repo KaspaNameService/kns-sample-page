@@ -7,6 +7,8 @@
  * - When `afterSigning` is true, the wallet had signed and a transaction may be on its way. Never retry by
  *   yourself: look the name up first (`sentTxid` names the transaction when the refusal knows it).
  * - Most refusals happen before the wallet is asked, and their message ends "Nothing was signed".
+ * - A `waitForIndex` time-out (code `unknown`, after the transaction was sent) is NOT a failure: the transaction is
+ *   done and the tracker is behind. Keep it out of this function: `waitForTracker` in write-ui.ts catches it.
  * - A read throws `InvalidNameError`, `InvalidAddressError`, `ApiError`, `TimeoutError`, `RegistryMismatchError`…
  *
  * Every section on this page shows its errors through `explainError`.
@@ -35,7 +37,8 @@ export function explainError(e: unknown): string {
       const tx = e.sentTxid ? ` Transaction: ${e.sentTxid}.` : ''
       return `The wallet signed, and this may have been sent.${tx} Check the name before trying again.\n\n${e.message}`
     }
-    // `unknown` is usually a product rule (you do not hold the name, it is listed…): the message says which.
+    // `unknown` here is a product rule (you do not hold the name, it is listed…): the message says which. The other
+    // `unknown`, a `waitForIndex` time-out, never reaches this point in this page: see the comment at the top.
     const meaning = TX_CODES[e.code] ?? 'The operation was refused.'
     return `${meaning}\n\n[${e.code}] ${e.message}`
   }

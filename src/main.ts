@@ -32,6 +32,7 @@ import primaryCode from './examples/08-primary-name.ts?raw'
 import listCode from './examples/09-list-for-sale.ts?raw'
 import buyCode from './examples/10-buy.ts?raw'
 import errorsCode from './examples/errors.ts?raw'
+import writeUiCode from './examples/write-ui.ts?raw'
 import knsCode from './kns.ts?raw'
 
 type Values = Record<string, string>
@@ -126,7 +127,9 @@ const SECTIONS: Section[] = [
       {
         label: 'Run',
         run: (v) => {
-          const partner = v.filter === 'address' ? (v.partner ?? '') : (v.filter ?? '')
+          const partner = v.filter === 'address' ? (v.partner ?? '').trim() : (v.filter ?? '')
+          // An empty address would mean "no filter": say so, rather than show every listing as if filtered.
+          if (v.filter === 'address' && !partner) throw new Error('Enter the partner address, or pick All listings.')
           return browseListings((v.sort ?? 'price_asc') as Parameters<typeof browseListings>[0], partner)
         },
       },
@@ -374,24 +377,37 @@ for (const s of SECTIONS) {
   nav.append(h('li', {}, h('a', { href: `#${s.id}` }, s.title)))
 }
 
-// Two more source panels with no Run button: the clients, and the error handling every section uses.
-app.append(
-  h(
-    'section',
-    { id: 'clients', class: 'card' },
-    h('h2', {}, 'The clients'),
-    h('p', { class: 'intro' }, 'Where the reader and the writer are made: one file, imported by every example.'),
-    codeBlock('src/kns.ts', knsCode),
-  ),
-  h(
-    'section',
-    { id: 'errors', class: 'card' },
-    h('h2', {}, 'Errors'),
-    h('p', { class: 'intro' }, 'Every section shows its errors through one function that branches on the error codes.'),
-    codeBlock('src/examples/errors.ts', errorsCode),
-  ),
-)
-nav.append(h('li', {}, h('a', { href: '#clients' }, 'The clients')), h('li', {}, h('a', { href: '#errors' }, 'Errors')))
+// Three more source panels with no Run button: the clients, what the write examples share, and the errors.
+const PANELS: { id: string; title: string; intro: string; file: string; code: string }[] = [
+  {
+    id: 'clients',
+    title: 'The clients',
+    intro: 'Where the reader and the writer are made: one file, imported by every example.',
+    file: 'src/kns.ts',
+    code: knsCode,
+  },
+  {
+    id: 'write-helpers',
+    title: 'Shared by the write examples',
+    intro:
+      'The confirm and progress hooks sections 6 to 10 call (your app supplies its own dialog), and the wait for ' +
+      'the tracker after a send, where a time-out is not a failure.',
+    file: 'src/examples/write-ui.ts',
+    code: writeUiCode,
+  },
+  {
+    id: 'errors',
+    title: 'Errors',
+    intro: 'Every section shows its errors through one function that branches on the error codes.',
+    file: 'src/examples/errors.ts',
+    code: errorsCode,
+  },
+]
+for (const p of PANELS) {
+  const intro = h('p', { class: 'intro' }, p.intro)
+  app.append(h('section', { id: p.id, class: 'card' }, h('h2', {}, p.title), intro, codeBlock(p.file, p.code)))
+  nav.append(h('li', {}, h('a', { href: `#${p.id}` }, p.title)))
+}
 
 showDetectedWallets()
 setTimeout(showDetectedWallets, 1000)

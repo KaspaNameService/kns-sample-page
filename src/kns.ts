@@ -11,8 +11,8 @@
  */
 import { Kns } from '@knsdomains/sdk'
 import { KnsTx, type KnsSigner } from '@knsdomains/sdk-tx'
-// `@knsdomains/wasm` is installed by `@knsdomains/sdk-tx`, at the exact version it was tested with.
-// Import it, but do not add it to package.json yourself.
+// `@knsdomains/wasm` is installed by `@knsdomains/sdk-tx`, at the exact version it was tested with. With npm,
+// import it and leave it out of package.json. With pnpm or Yarn Plug'n'Play, declare it: see the README's Notes.
 import { load } from '@knsdomains/wasm'
 
 /**

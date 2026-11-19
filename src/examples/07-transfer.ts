@@ -11,7 +11,7 @@
  * the network fee, about 0.015 KAS.
  */
 import { writer } from '../kns'
-import type { WriteUi } from './write-ui'
+import { NOT_SHOWN_YET, waitForTracker, type WriteUi } from './write-ui'
 
 export async function transferName(name: string, to: string, ui: WriteUi) {
   const tx = writer()
@@ -27,11 +27,12 @@ export async function transferName(name: string, to: string, ui: WriteUi) {
   if (!(await ui.confirm(plan.summary, ...details))) return null // e.g. 'send alice.kas to kaspatest:qr…'
 
   const result = await tx.submit(plan)
-  ui.progress(`sent ${result.txid}, waiting for the tracker`)
-  await tx.waitForIndex(plan.name, result.txid)
+  // Sent. Not shown by the tracker yet is not a failure (see write-ui.ts).
+  const indexed = await waitForTracker(tx, plan.name, result.txid, ui)
 
+  const recipient = to.trim()
   return {
-    show: `${plan.name} now belongs to ${to.trim()}.`,
+    show: indexed ? `${plan.name} now belongs to ${recipient}.` : `Sent ${plan.name} to ${recipient}. ${NOT_SHOWN_YET}`,
     txid: result.txid,
     warnings: result.warnings, // for a multisig or contract recipient: what holding the name means. Show them.
   }

@@ -12,26 +12,30 @@
  *   at 1%, 20 KAS.
  * - `plan.sale` is the split: the price, what the seller gets, what the partner gets.
  * - While listed, a name cannot be transferred or changed, and its fee cannot change: cancel first.
+ * - A cancel pays nobody. Its plan still carries the old listing's terms in `plan.sale`: do not show them as a split.
  */
 import { formatBps, formatKas, parseKas } from '@knsdomains/sdk'
-import { partnerFeeWaivedText, type PartnerFeeRequest, type Plan } from '@knsdomains/sdk-tx'
+import type { PartnerFeeRequest, Plan } from '@knsdomains/sdk-tx'
 import { writer } from '../kns'
-import type { WriteUi } from './write-ui'
+import { NOT_SHOWN_YET, waitForTracker, type WriteUi } from './write-ui'
 
-/** The lines a seller should read before signing: the split, and the waiver when there is one. */
-function saleLines(plan: Plan<'list' | 'cancel'>): string[] {
-  const lines: string[] = []
+/**
+ * A breakdown of a listing's summary, line by line, for the seller to read before signing. The summary already
+ * says all of it in one sentence, the waiver included ("…; partner fee 0.125 KAS is below the 0.2 KAS minimum, so
+ * this listing has no fee"), so the waiver is not repeated here. A screen that does not show the summary can get
+ * that sentence alone from `partnerFeeWaivedText(plan.partnerFeeWaived)`.
+ */
+function listingBreakdown(plan: Plan<'list'>): string[] {
   const sale = plan.sale
-  if (sale) {
-    lines.push(`Price: ${formatKas(sale.priceSompi)} KAS`)
-    lines.push(`The seller gets: ${formatKas(sale.sellerSompi)} KAS`)
-    if (sale.partnerFee) {
-      const { bps, address } = sale.partnerFee
-      lines.push(`The partner gets: ${formatKas(sale.partnerSompi)} KAS (${formatBps(bps)}) at ${address}`)
-    }
+  if (!sale) return []
+  const lines = [`Price: ${formatKas(sale.priceSompi)} KAS`, `The seller gets: ${formatKas(sale.sellerSompi)} KAS`]
+  if (sale.partnerFee) {
+    const { bps, address } = sale.partnerFee
+    lines.push(`The partner gets: ${formatKas(sale.partnerSompi)} KAS (${formatBps(bps)}) at ${address}`)
+  } else if (plan.partnerFeeWaived) {
+    // The check that matters: a fee was asked for and this listing will not carry it.
+    lines.push('The partner gets: nothing. The fee asked for is waived, as the summary says.')
   }
-  // The SDK's own sentence: "partner fee 0.025 KAS is below the 0.2 KAS minimum, so this listing has no fee".
-  if (plan.partnerFeeWaived) lines.push(`Note: ${partnerFeeWaivedText(plan.partnerFeeWaived)}.`)
   return lines
 }
 
@@ -52,14 +56,14 @@ export async function listForSale(
   // parseKas('25') → 2_500_000_000n sompi. The plan checks the price, the rate and the address; nothing is signed.
   const plan = await tx.planList(name, parseKas(priceKas.trim()), { partnerFee })
 
-  if (!(await ui.confirm(plan.summary, ...saleLines(plan)))) return null
+  if (!(await ui.confirm(plan.summary, ...listingBreakdown(plan)))) return null
 
   const result = await tx.submit(plan)
-  ui.progress(`sent ${result.txid}, waiting for the tracker`)
-  await tx.waitForIndex(plan.name, result.txid)
+  const indexed = await waitForTracker(tx, plan.name, result.txid, ui) // not shown yet is not a failure
 
+  const listed = `${plan.name} at ${formatKas(plan.sale?.priceSompi ?? 0n)} KAS`
   return {
-    show: `${plan.name} is listed at ${formatKas(plan.sale?.priceSompi ?? 0n)} KAS.`,
+    show: indexed ? `Listed ${listed}.` : `Sent the listing of ${listed}. ${NOT_SHOWN_YET}`,
     txid: result.txid,
     partnerFeeWaived: plan.partnerFeeWaived !== undefined,
   }
@@ -68,13 +72,18 @@ export async function listForSale(
 export async function cancelListing(name: string, ui: WriteUi) {
   const tx = writer()
 
-  // The listing's fee is part of the address it sits at, so the plan carries it. A cancel pays nobody.
+  // The listing's fee is part of the address it sits at, so the plan carries the old terms in `plan.sale`. But a
+  // cancel pays nobody: show the summary and the current price, never the seller's or the partner's share.
   const plan = await tx.planCancel(name)
-  if (!(await ui.confirm(plan.summary, ...saleLines(plan)))) return null
+  const listedAt = plan.sale ? `Listed now at ${formatKas(plan.sale.priceSompi)} KAS. ` : ''
+  const note = `${listedAt}A cancel pays nobody: the wallet pays only the network fee.`
+  if (!(await ui.confirm(plan.summary, note))) return null
 
   const result = await tx.submit(plan)
-  ui.progress(`sent ${result.txid}, waiting for the tracker`)
-  await tx.waitForIndex(plan.name, result.txid)
+  const indexed = await waitForTracker(tx, plan.name, result.txid, ui)
 
-  return { show: `${plan.name} is no longer for sale.`, txid: result.txid }
+  return {
+    show: indexed ? `${plan.name} is no longer for sale.` : `Sent the cancel for ${plan.name}. ${NOT_SHOWN_YET}`,
+    txid: result.txid,
+  }
 }

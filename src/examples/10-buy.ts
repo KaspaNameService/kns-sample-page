@@ -13,7 +13,7 @@
  */
 import { formatBps, formatKas, parseKas } from '@knsdomains/sdk'
 import { kns, writer } from '../kns'
-import type { WriteUi } from './write-ui'
+import { NOT_SHOWN_YET, waitForTracker, type WriteUi } from './write-ui'
 
 /** `sawPriceKas` empty: use the listing's current price, as a listing screen would have shown it. */
 export async function buyName(name: string, sawPriceKas: string, ui: WriteUi) {
@@ -38,8 +38,12 @@ export async function buyName(name: string, sawPriceKas: string, ui: WriteUi) {
   if (!(await ui.confirm(plan.summary, ...details))) return null
 
   const result = await tx.submit(plan)
-  ui.progress(`sent ${result.txid}, waiting for the tracker`)
-  await tx.waitForIndex(plan.name, result.txid)
+  // Sent: the purchase is on its way. Not shown by the tracker yet is not a failure (see write-ui.ts).
+  const indexed = await waitForTracker(tx, plan.name, result.txid, ui)
 
-  return { show: `You bought ${plan.name}.`, txid: result.txid, paid: `${formatKas(plan.spendsSompi)} KAS` }
+  return {
+    show: indexed ? `You bought ${plan.name}.` : `Sent your purchase of ${plan.name}. ${NOT_SHOWN_YET}`,
+    txid: result.txid,
+    paid: `${formatKas(plan.spendsSompi)} KAS`,
+  }
 }

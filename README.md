@@ -50,7 +50,7 @@ src/
     09-list-for-sale.ts
     10-buy.ts
     errors.ts               any SDK error as a readable message
-    write-ui.ts             the confirm and progress hooks the write examples call
+    write-ui.ts             what the write examples share: the confirm hook, and the wait for the tracker
   main.ts                   builds the sections and shows each example's source (Vite's ?raw)
   style.css
 ```
@@ -60,7 +60,7 @@ src/
 | #   | Section                 | File                                 | SDK call                                                       |
 | --- | ----------------------- | ------------------------------------ | -------------------------------------------------------------- |
 | 1   | Send to a name          | `src/examples/01-send-to-name.ts`    | `kns.recipientFor`                                             |
-| 2   | A user's names          | `src/examples/02-user-names.ts`      | `kns.primaryNameFor`, `kns.namesOf`                            |
+| 2   | A user's names          | `src/examples/02-user-names.ts`      | `kns.classify`, `kns.primaryNameFor`, `kns.namesOf`            |
 | 3   | Check a name            | `src/examples/03-check-name.ts`      | `kns.quote`, `kns.available`, `kns.lookup`                     |
 | 4   | Marketplace             | `src/examples/04-marketplace.ts`     | `kns.listings({ sort, partner })`                              |
 | 5   | Connect a wallet        | `src/examples/05-connect-wallet.ts`  | `kaswareSigner`, `kastleSigner`, `new KnsTx` (in `src/kns.ts`) |
@@ -69,10 +69,13 @@ src/
 | 8   | Primary name            | `src/examples/08-primary-name.ts`    | `tx.planSetPrimary`, `tx.planClearPrimary`                     |
 | 9   | List for sale, cancel   | `src/examples/09-list-for-sale.ts`   | `tx.planList` with `partnerFee`, `tx.planCancel`               |
 | 10  | Buy a listed name       | `src/examples/10-buy.ts`             | `kns.resolveName`, `tx.planBuy({ expectedPriceSompi })`        |
+| –   | Write helpers           | `src/examples/write-ui.ts`           | `WriteUi`, `tx.waitForIndex` (a time-out is not a failure)     |
 | –   | Errors                  | `src/examples/errors.ts`             | `KnsError`, `KnsTxError.code`                                  |
 
 `kns` is the reader (`@knsdomains/sdk`); `tx` is the writer (`@knsdomains/sdk-tx`). Every spend of a name you hold
 is a plan, then `submit`: the plan checks everything with nothing signed, and its `summary` is what the user confirms.
+After the send, every write waits for the tracker with `waitForTracker` (`src/examples/write-ui.ts`): when the tracker
+is slow, the result still carries the txid and says the transaction is on its way, never that it failed.
 
 ## Learn more
 
@@ -90,8 +93,14 @@ is a plan, then `submit`: the plan checks everything with nothing signed, and it
   (`0.1.0-tn10.4d10952e`: lineage `4d10952e`). When testnet moves to a new lineage, the reader refuses the tracker
   with `RegistryMismatchError`: install the new version of both packages, with `--save-exact`.
 - **ES modules only.** The packages ship no CommonJS: keep `"type": "module"`.
-- `@knsdomains/wasm` comes with `@knsdomains/sdk-tx` at the version it was tested with; do not install it yourself.
-  It is 8.9 MB (3.9 MB gzipped), so the page loads it only when a wallet connects.
+- `@knsdomains/wasm` comes with `@knsdomains/sdk-tx` at the version it was tested with. With npm, do not install it
+  yourself: `src/kns.ts` imports it from where npm put it. It is 8.9 MB (3.9 MB gzipped), so the page loads it only
+  when a wallet connects.
+- **pnpm or Yarn Plug'n'Play:** these let code import only the packages its own `package.json` declares, so the
+  import in `src/kns.ts` fails with _Cannot find module '@knsdomains/wasm'_. Add `@knsdomains/wasm` to your
+  dependencies at the exact version `@knsdomains/sdk-tx` depends on (`npm ls @knsdomains/wasm` shows it;
+  `9.0.1-src.f785b05` for this SDK version), with `--save-exact`. With pnpm, `public-hoist-pattern[]=@knsdomains/wasm`
+  in `.npmrc` also works.
 - Vite 8 needs no configuration for the wasm. On Vite 6 or 7, add
   `optimizeDeps: { exclude: ['@knsdomains/wasm'] }` to `vite.config`, or the dev server cannot load it.
 

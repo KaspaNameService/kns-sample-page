@@ -1,7 +1,9 @@
 /**
  * 2. A user's names
  *
- * Teaches two reads about an address:
+ * Teaches two reads about an address, after a local check that the input is one:
+ * - `kns.classify(input)`: an address, a name, a subdomain or neither, with no request. Check first, so a typo
+ *   costs no round trip and the user gets the reason (`kaspa:…` is not a testnet-10 address).
  * - `kns.primaryNameFor(address)`: the ONE name its holder chose to show, by setting the on-chain primary flag
  *   (section 8 sets it). Use it wherever you would show the address: a header, a contact list, a history row.
  * - `kns.namesOf(address, { limit })`: every name the address holds, one page at a time.
@@ -15,8 +17,14 @@
 import { formatKas } from '@knsdomains/sdk'
 import { kns } from '../kns'
 
-export async function namesOfAddress(address: string) {
-  const owner = address.trim()
+export async function namesOfAddress(input: string) {
+  // Local: an input that is not an address on this network sends no request at all.
+  const c = kns.classify(input)
+  if (c.kind !== 'address') {
+    const why = c.kind === 'neither' ? c.reason : `${c.name} is a name: section 1 turns a name into its address.`
+    return { show: 'Not a testnet-10 address.', why }
+  }
+  const owner = c.address
 
   // Two independent reads: ask both at once.
   const [primary, page] = await Promise.all([

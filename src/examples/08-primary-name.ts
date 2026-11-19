@@ -8,7 +8,7 @@
  * Setting a new primary name is enough: the newest flagged name wins. A transfer or a sale clears the flag.
  */
 import { writer } from '../kns'
-import type { WriteUi } from './write-ui'
+import { NOT_SHOWN_YET, waitForTracker, type WriteUi } from './write-ui'
 
 export async function changePrimaryName(name: string, action: 'set' | 'clear', ui: WriteUi) {
   const tx = writer()
@@ -17,12 +17,9 @@ export async function changePrimaryName(name: string, action: 'set' | 'clear', u
   if (!(await ui.confirm(plan.summary))) return null // e.g. 'make alice.kas the primary name of kaspatest:…'
 
   const result = await tx.submit(plan)
-  ui.progress(`sent ${result.txid}, waiting for the tracker`)
   // Let the tracker catch up before the next spend of this name: a plan built on the old state is refused.
-  await tx.waitForIndex(plan.name, result.txid)
+  const indexed = await waitForTracker(tx, plan.name, result.txid, ui)
 
-  return {
-    show: action === 'set' ? `${plan.name} is now the primary name.` : `${plan.name} is no longer the primary name.`,
-    txid: result.txid,
-  }
+  const done = `${plan.name} is ${action === 'set' ? 'now' : 'no longer'} the primary name.`
+  return { show: indexed ? done : `Sent: ${plan.summary}. ${NOT_SHOWN_YET}`, txid: result.txid }
 }

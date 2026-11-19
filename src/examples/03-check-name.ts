@@ -9,6 +9,9 @@
  *
  * Prices go by length in code points: 1 or 2 characters 4,200 KAS, 3 → 2,100, 4 → 525, 5 or more → 35 KAS.
  * Show what `quote` answers rather than hard-coding this list: `台北.kas` is 2 code points, and so is a flag emoji.
+ *
+ * A subdomain (`pay.alice.kas`, `tier` null) is not for anyone to register: only the holder of its parent mints it,
+ * paying a flat 1 KAS subdomain fee plus the deposits. Say so, so a free subdomain does not read as "yours for 1 KAS".
  */
 import { formatKas } from '@knsdomains/sdk'
 import { kns } from '../kns'
@@ -24,13 +27,23 @@ export async function checkName(input: string) {
     if (l.kind === 'listed') status = `taken, listed for sale at ${formatKas(l.priceSompi)} KAS (see section 10)`
   }
 
+  // `tier` is null for a subdomain: its fee is the parent holder's to pay when they mint it, not a registration.
+  let show = `${q.name} is ${status}. Registration fee ${formatKas(q.feeSompi)} KAS.`
+  if (q.tier === null) {
+    const parent = q.name.slice(q.name.indexOf('.') + 1)
+    const cost = `${formatKas(q.feeSompi)} KAS subdomain fee plus ${formatKas(q.lockedSompi)} KAS of deposits`
+    show = free
+      ? `${q.name} is free, but only the holder of ${parent} can mint it (${cost}).`
+      : `${q.name} is ${status}.`
+  }
+
   return {
-    show: `${q.name} is ${status}. Registration fee ${formatKas(q.feeSompi)} KAS.`,
+    show,
     name: q.name,
     available: free,
     codePoints: q.codePoints,
     tier: q.tier, // 1 to 5, or null for a subdomain (flat 1 KAS fee, minted by the parent's holder)
-    fee: `${formatKas(q.feeSompi)} KAS`, // paid to the registry
+    fee: `${formatKas(q.feeSompi)} KAS`, // paid to the registry (for a subdomain, by the parent's holder)
     lockedWithName: `${formatKas(q.lockedSompi)} KAS`, // three deposits that stay with the name
     networkFeeAllowance: `${formatKas(q.allowanceSompi)} KAS`, // set aside; about 0.02 KAS is used
     walletNeeds: `${formatKas(q.totalToFund)} KAS`, // test "can afford" against this, and fund a little more
