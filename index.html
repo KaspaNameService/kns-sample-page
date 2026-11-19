@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Runnable examples of the KNS SDK: .kas names on Kaspa testnet-10." />
+    <title>KNS SDK sample page</title>
+  </head>
+  <body>
+    <header class="page-header">
+      <h1>KNS SDK sample page</h1>
+      <p class="lede">
+        Each section runs one capability of the KNS SDK (<code>.kas</code> names on Kaspa) against testnet-10, shows
+        what it returns, and shows the code that did it. Copy the code; it is the real file.
+      </p>
+      <p class="chips">
+        <span class="chip">testnet-10 · lineage 4d10952e</span>
+        <span class="chip" id="tracker-status">tracker: checking…</span>
+        <span class="chip" id="wallet-status">no wallet connected</span>
+      </p>
+      <p class="how">
+        Sections 1 to 4 only read, and work right away. Sections 6 to 10 need a wallet: connect one in section 5.
+        Every write shows what the wallet will be asked to sign, and signs only after you confirm.
+      </p>
+      <nav aria-label="Sections"><ol id="toc"></ol></nav>
+    </header>
+
+    <main id="app"></main>
+
+    <footer class="page-footer">
+      <p>
+        Docs:
+        <a href="https://github.com/KaspaNameService/kns-sdk-docs/blob/main/quickstart.md">quickstart</a> ·
+        <a href="https://github.com/KaspaNameService/kns-sdk-docs/blob/main/wallet-integration.md">wallet integration</a> ·
+        <a href="https://github.com/KaspaNameService/kns-sdk-docs/blob/main/wallet-signing.md">wallet signing</a>
+        &nbsp;|&nbsp; npm:
+        <a href="https://www.npmjs.com/package/@knsdomains/sdk">@knsdomains/sdk</a> ·
+        <a href="https://www.npmjs.com/package/@knsdomains/sdk-tx">@knsdomains/sdk-tx</a>
+      </p>
+      <p>
+        Testnet KAS: <a href="https://faucet-tn10.kaspanet.io">faucet-tn10.kaspanet.io</a> · Tracker:
+        <a href="https://gap-tn10.knsdomains.org/health">gap-tn10.knsdomains.org</a> · Official site:
+        <a href="https://covenant-tn10.knsdomains.org">covenant-tn10.knsdomains.org</a>
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
